@@ -5,13 +5,12 @@
  *
  */
 
-var net = require('net');
 var io = require("socket.io-client");
 var util = require('util');
 var os = require('os');
 var winston = require('winston');
 
-var miCabLogger = module.exports = function (options) {
+var miCabLogger = exports.miCabLogger = function (options) {
   winston.Transport.call(this, options);
   options = options || {};
 
@@ -60,6 +59,8 @@ miCabLogger.prototype.log = function (level, msg, meta, callback) {
   log_entry = {
     nodeName : self.node_name,
     hostname : self.hostname,
+    msg : msg,
+    meta : meta,
     logLevel : level,
     timestamp : new Date()
   }
@@ -84,10 +85,15 @@ miCabLogger.prototype.log = function (level, msg, meta, callback) {
 miCabLogger.prototype.connect = function () {
   var self = this;
 
-  this.socket = io(self.host + ":" + self.port);
+  this.socket = io("http://" + self.host + ":" + self.port);
 
   this.socket.on("connect", function () {
-    console.log(arguments, "connected");
+    console.log("connected");
+    self.announce();
+  });
+
+  this.socket.on("error", function (err) {
+    console.log(err);
   });
 
 
@@ -135,49 +141,24 @@ miCabLogger.prototype.connect = function () {
 };
 
 miCabLogger.prototype.announce = function () {
-  var self = this;
-  self.socket.write('+node|' + self.localhost +'|'+ self.node_name + self.delimiter);
-  self.connected = true;
-  self.flush();
+  this.socket.emit("test", {asd : 1});
+  this.connected = true;
+  this.flush();
 };
 
 miCabLogger.prototype.flush = function () {
-  var self = this;
-
-  for (var i = 0; i < self.log_queue.length; i++) {
-    self.sendLog(self.log_queue[i].message, self.log_queue[i].callback);
-    self.emit('logged');
+  for (var i = 0; i < this.log_queue.length; i++) {
+    this.sendLog(this.log_queue[i].message, this.log_queue[i].callback);
+    this.emit('logged');
   }
-  self.log_queue.length = 0;
+  this.log_queue.length = 0;
 };
 
 miCabLogger.prototype.sendLog = function (message, callback) {
-  var self = this,
-      log_message = message.join('|') + self.delimiter;
-
-  self.socket.write(log_message);
+  this.socket.emit("test", message);
   callback();
 };
 
 var getIsoDate = function(){
   return new Date().toISOString();
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
